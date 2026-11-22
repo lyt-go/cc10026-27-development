@@ -103,6 +103,21 @@ class CallAuditService(BaseModuleService):
         from app.services.data_manager import archive_audit_records
         return archive_audit_records(before_date)
 
+    def audits_for_merge_pending(self, pending_id: int) -> list[dict[str, Any]]:
+        """根据无归并键待核明细ID关联审计记录。
+
+        返回该明细从归并校验、补键到重试归并全过程中的审计，
+        每条记录通过 affected_rows 关联受影响的来源行，并携带处理结果。
+        """
+        from app.services.data_manager import list_audit
+        matched = []
+        for record in list_audit(caller="data_merge"):
+            if record.get("pending_id") == pending_id:
+                matched.append(record)
+            elif pending_id in (record.get("pending_ids") or []):
+                matched.append(record)
+        return matched
+
     def run_action(self, entry_id: int, action: str) -> tuple[dict[str, Any] | None, str]:
         if action == "提交归档":
             self.archive_old_records(self._today_str())

@@ -255,6 +255,63 @@ def list_exports() -> list[dict[str, Any]]:
     return records
 
 
+# ========== 归并待核明细与归并运行 ==========
+
+
+def write_merge_review(pending_id: int, review_data: dict[str, Any]) -> None:
+    """写入无归并键待核明细，供复核人补键与重试归并。"""
+    review_data.setdefault("_created_at", _now_iso())
+    review_data["_updated_at"] = _now_iso()
+    _write_json(DATA_ROOT / "merge_review" / f"{pending_id:06d}.json", review_data)
+
+
+def read_merge_review(pending_id: int) -> dict[str, Any]:
+    return _read_json(DATA_ROOT / "merge_review" / f"{pending_id:06d}.json", {})
+
+
+def list_merge_reviews(rule_id: int | None = None, status: str | None = None) -> list[dict[str, Any]]:
+    """按规则/状态列出待核明细。"""
+    _ensure_dir(DATA_ROOT / "merge_review")
+    records = []
+    for f in sorted(DATA_ROOT.glob("merge_review/[0-9]*.json")):
+        record = _read_json(f)
+        if not record:
+            continue
+        if rule_id is not None and record.get("rule_id") != rule_id:
+            continue
+        if status and record.get("status") != status:
+            continue
+        records.append(record)
+    return records
+
+
+def next_merge_review_id() -> int:
+    return max((int(f.stem) for f in DATA_ROOT.glob("merge_review/[0-9]*.json")), default=0) + 1
+
+
+def write_merge_run(run_seq: int, run_data: dict[str, Any]) -> None:
+    """记录一次归并运行的有效结果，作为可交付确认依据。"""
+    run_data["_created_at"] = run_data.get("_created_at", _now_iso())
+    _write_json(DATA_ROOT / "merge_runs" / f"{run_seq:06d}.json", run_data)
+
+
+def list_merge_runs(rule_id: int | None = None) -> list[dict[str, Any]]:
+    _ensure_dir(DATA_ROOT / "merge_runs")
+    records = []
+    for f in sorted(DATA_ROOT.glob("merge_runs/[0-9]*.json")):
+        record = _read_json(f)
+        if not record:
+            continue
+        if rule_id is not None and record.get("rule_id") != rule_id:
+            continue
+        records.append(record)
+    return records
+
+
+def next_merge_run_seq() -> int:
+    return max((int(f.stem) for f in DATA_ROOT.glob("merge_runs/[0-9]*.json")), default=0) + 1
+
+
 # ========== 模块数据快照 ==========
 
 
